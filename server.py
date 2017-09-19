@@ -4,11 +4,17 @@ import time
 
 
 def server():
-    while True:
-        conn, addr = sock.accept()
-        conn.recv(1024)
-        conn.send(b'HTTP/1.1 200 OK\n\nhello')
-        conn.close()
+    try:
+        while True:
+            conn, addr = sock.accept()
+            resp = conn.recv(1024).decode()
+            print(resp)
+            with open('index.html') as file:
+                bHtml = file.read().encode()
+            conn.send(b'HTTP/1.1 200 OK\n\n' + bHtml)
+            conn.close()
+    except OSError:
+        print('pressed Ctrl-C')
 
 
 sock = socket.socket()
@@ -26,4 +32,5 @@ while True:
         break
 
 t.join()
+
 
