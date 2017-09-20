@@ -2,20 +2,29 @@ import socket
 import threading
 import time
 
+def respGener(reqst):
+    arrReqst = reqst.decode().split('\n')
+    startStr = arrReqst[0].split(' ')
+    reqstFile = startStr[1][1:]
+
+    if reqstFile == '' or reqstFile == 'favicon.ico':
+        reqstFile = 'index.html'
+
+    with open(reqstFile) as file:
+        bBody = file.read().encode()
+
+    resp = b'HTTP/1.1 200 OK\n\n' + bBody
+    return resp
+
 
 def server():
     try:
         while True:
             conn, addr = sock.accept()
-            resp = conn.recv(1024).decode()
-            print(resp)
-            with open('index.html') as file:
-                bHtml = file.read().encode()
-            conn.send(b'HTTP/1.1 200 OK\n\n' + bHtml)
+            conn.send(respGener(conn.recv(1024)))
             conn.close()
     except OSError:
         print('pressed Ctrl-C')
-
 
 sock = socket.socket()
 sock.bind(('localhost', 80))
