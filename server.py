@@ -2,33 +2,35 @@ import socket
 import threading
 import time
 
-def respGener(reqst):
-    arrReqst = reqst.decode().split('\n')
-    startStr = arrReqst[0].split(' ')
-    reqstFile = startStr[1]
-    headers = b'\n\n'
+def response(req):
+    arr_req = req.decode().split('\n')
+    arr_req_line = arr_req[0].split(' ')
+    resource = arr_req_line[1]
+    headers = ''
 
-    if reqstFile == '/':
-        reqstFile = '/index.html'
+    if resource == '/':
+        resource = '/index.html'
 
-    with open('.' + reqstFile, 'rb') as file:
-        body = file.read()
+    with open('.' + resource, 'rb') as file:
+        message_body = file.read()
 
-    if reqstFile.endswith('.css'):
-        headers = b'\nContent-Type: text/css\n\n'
-    elif reqstFile.endswith('.ico'):
-        headers = b'\nContent-Type: image/x-icon\n\n'
-    return b'HTTP/1.1 200 OK' + headers + body
+    if resource.endswith('.css'):
+        headers = 'Content-Type: text/css'
+    elif resource.endswith('.ico'):
+        headers = 'Content-Type: image/x-icon'
+
+    return bytes('HTTP/1.1 200 OK\n' + headers + '\n\n', encoding='utf-8') + message_body
 
 
 def server():
     try:
         while True:
             conn, addr = sock.accept()
-            conn.send(respGener(conn.recv(1024)))
+            conn.send(response(conn.recv(1024)))
             conn.close()
     except OSError:
         print('pressed Ctrl-C')
+
 
 sock = socket.socket()
 sock.bind(('localhost', 80))
@@ -45,5 +47,3 @@ while True:
         break
 
 t.join()
-
-
