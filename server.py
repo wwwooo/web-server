@@ -5,16 +5,20 @@ import time
 def respGener(reqst):
     arrReqst = reqst.decode().split('\n')
     startStr = arrReqst[0].split(' ')
-    reqstFile = startStr[1][1:]
+    reqstFile = startStr[1]
+    headers = b'\n\n'
 
-    if reqstFile == '' or reqstFile == 'favicon.ico':
-        reqstFile = 'index.html'
+    if reqstFile == '/':
+        reqstFile = '/index.html'
 
-    with open(reqstFile) as file:
-        bBody = file.read().encode()
+    with open('.' + reqstFile, 'rb') as file:
+        body = file.read()
 
-    resp = b'HTTP/1.1 200 OK\n\n' + bBody
-    return resp
+    if reqstFile.endswith('.css'):
+        headers = b'\nContent-Type: text/css\n\n'
+    elif reqstFile.endswith('.ico'):
+        headers = b'\nContent-Type: image/x-icon\n\n'
+    return b'HTTP/1.1 200 OK' + headers + body
 
 
 def server():
