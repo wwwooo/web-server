@@ -2,6 +2,7 @@ import socket
 import threading
 import time
 
+
 def response(req):
     arr_req = req.decode().split('\n')
     arr_req_line = arr_req[0].split(' ')
