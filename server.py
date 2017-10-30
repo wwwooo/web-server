@@ -1,4 +1,5 @@
 import socket
+import sqlite3
 
 
 def response(req_line, h, body):
@@ -32,14 +33,18 @@ def readData(s):
     head, body = data.split('\r\n\r\n')
     parts = head.split('\r\n')
     start_line = parts[0]
-    # headers = {h[0]: h[1].strip() for h in (p.split(':') for p in parts[1:])}
-    headers = {}
-    for p in parts[1:]:
-        h = p.split(':')
-        headers[h[0]] = h[1].strip()
+    headers = {h[0]: h[1].strip() for h in (p.split(':') for p in parts[1:])}
+    # headers = {}
+    # for p in parts[1:]:
+    #     h = p.split(':')
+    #     headers[h[0]] = h[1].strip()
     if 'Content-Length' in headers:
         body += s.recv(int(headers['Content-Length']) - len(body)).decode('utf-8')
     return start_line, headers, body
+
+
+conn_db = sqlite3.connect('contacts_db.sqlite')
+c = conn_db.cursor()
 
 sock = socket.socket()
 sock.bind(('localhost', 80))
@@ -52,8 +57,12 @@ while True:
             conn, addr = sock.accept()
             conn.settimeout(1)
             l, h, b = readData(conn)
-            print(l, h, b)
-            print('**********************')
+            if b:
+                barr = b.split('&')
+                body = {h[0]: h[1].strip() for h in (p.split('=') for p in barr)}
+                print(tuple(body.values()))
+                c.execute("INSERT INTO contacts VALUES (?, ?, ?)", tuple(body.values()))
+                conn_db.commit()
             conn.sendall(response(l, h, b))
             conn.close()
         except socket.timeout:
@@ -62,3 +71,5 @@ while True:
         print('pressed Ctrl-C')
         sock.close()
         break
+
+conn_db.close()
