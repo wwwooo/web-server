@@ -14,9 +14,16 @@ def response(req_line, h, body):
         if resource == '/':
             resource = '/success.html'
 
-
-    with open('.' + resource, 'rb') as file:
-        message_body = file.read()
+    if resource != '/admin':
+        with open('.' + resource, 'rb') as file:
+            message_body = file.read()
+    else:
+        message_body = b''
+        conn_db = sqlite3.connect('contacts_db.sqlite')
+        c = conn_db.cursor()
+        for row in c.execute("SELECT * FROM contacts"):
+            message_body += bytes(str(row), encoding='utf-8') + b'\n'
+        c.close()
 
     if resource.endswith('.css'):
         headers = 'Content-Type: text/css'
@@ -57,11 +64,12 @@ while True:
             conn, addr = sock.accept()
             conn.settimeout(1)
             l, h, b = readData(conn)
+            print(l)
             if b:
                 barr = b.split('&')
                 body = {h[0]: h[1].strip() for h in (p.split('=') for p in barr)}
                 print(tuple(body.values()))
-                c.execute("INSERT INTO contacts VALUES (?, ?, ?)", tuple(body.values()))
+                c.execute("INSERT INTO contacts(name, mail, msg) VALUES (?, ?, ?)", tuple(body.values()))
                 conn_db.commit()
             conn.sendall(response(l, h, b))
             conn.close()
