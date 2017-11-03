@@ -2,7 +2,7 @@ import socket
 import sqlite3
 
 
-def response(req_line, h, body):
+def response(req_line, h, b):
     req_line = req_line.split(' ')
     resource = req_line[1]
     headers = ''
@@ -14,16 +14,24 @@ def response(req_line, h, body):
         if resource == '/':
             resource = '/success.html'
 
-    if resource != '/admin':
-        with open('.' + resource, 'rb') as file:
-            message_body = file.read()
-    else:
+    if resource.find('.') == -1:
+        resource += '.html'
+
+    if 'password' not in b:
+        try:
+            with open('.' + resource, 'rb') as file:
+                message_body = file.read()
+        except FileNotFoundError:
+            return b'HTTP/1.1 404 Not Found\n\n\n<h1>file not found</h1>'
+    elif b['password'] == str(1234):
         message_body = b''
         conn_db = sqlite3.connect('contacts_db.sqlite')
         c = conn_db.cursor()
         for row in c.execute("SELECT * FROM contacts"):
             message_body += bytes(str(row), encoding='utf-8') + b'\n'
         c.close()
+    else:
+        message_body = b'<h1>Sorry, you\'re wrong</h1>'
 
     if resource.endswith('.css'):
         headers = 'Content-Type: text/css'
@@ -33,28 +41,34 @@ def response(req_line, h, body):
     return bytes('HTTP/1.1 200 OK\n' + headers + '\n\n', encoding='utf-8') + message_body
 
 
-def readData(s):
+def readData(sock):
     data = ''
     while '\r\n\r\n' not in data:
-        data += s.recv(1024).decode('utf-8')
+        data += sock.recv(1024).decode('utf-8')
     head, body = data.split('\r\n\r\n')
     parts = head.split('\r\n')
     start_line = parts[0]
     headers = {h[0]: h[1].strip() for h in (p.split(':') for p in parts[1:])}
-    # headers = {}
-    # for p in parts[1:]:
-    #     h = p.split(':')
-    #     headers[h[0]] = h[1].strip()
     if 'Content-Length' in headers:
-        body += s.recv(int(headers['Content-Length']) - len(body)).decode('utf-8')
+        body += sock.recv(int(headers['Content-Length']) - len(body)).decode('utf-8')
     return start_line, headers, body
 
 
-conn_db = sqlite3.connect('contacts_db.sqlite')
-c = conn_db.cursor()
+def processing_body_req(body):
+    barr = body.split('&')
+    body = {h[0]: h[1].strip() for h in (p.split('=') for p in barr)}
+    if 'name' in body:
+        conn = sqlite3.connect('contacts_db.sqlite')
+        c = conn.cursor()
+        print(tuple(body.values()))
+        c.execute("INSERT INTO contacts(name, mail, msg) VALUES (?, ?, ?)", tuple(body.values()))
+
+        conn.commit()
+        conn.close()
+    return body
 
 sock = socket.socket()
-sock.bind(('localhost', 80))
+sock.bind(('0.0.0.0', 8000))
 sock.listen()
 sock.settimeout(1)
 
@@ -66,11 +80,7 @@ while True:
             l, h, b = readData(conn)
             print(l)
             if b:
-                barr = b.split('&')
-                body = {h[0]: h[1].strip() for h in (p.split('=') for p in barr)}
-                print(tuple(body.values()))
-                c.execute("INSERT INTO contacts(name, mail, msg) VALUES (?, ?, ?)", tuple(body.values()))
-                conn_db.commit()
+                b = processing_body_req(b)
             conn.sendall(response(l, h, b))
             conn.close()
         except socket.timeout:
@@ -79,5 +89,3 @@ while True:
         print('pressed Ctrl-C')
         sock.close()
         break
-
-conn_db.close()
