@@ -1,37 +1,41 @@
 import socket
 import sqlite3
+from creator import create_html
 
 
-def response(req_line, h, b):
-    req_line = req_line.split(' ')
-    resource = req_line[1]
+def response(req_line, req_headers, req_message_body):
+    resource = req_line.split(' ')[1]
     headers = ''
 
-    if 'Content-Length' not in h:
-        if resource == '/':
-            resource = '/index.html'
-    else:
-        if resource == '/':
-            resource = '/success.html'
+    if resource == '/':
+        if 'Content-Length' not in req_headers:
+            message_body = bytes(create_html(template='index.html'), encoding='utf-8')
+        else:
+            message_body = bytes(create_html(), encoding='utf-8')
+    elif resource == '/admin.html':
+        if not len(req_message_body):
+            message_body = bytes(create_html(msg='Protected Information. Enter the password',
+                                         template='authorization.html'), encoding='utf-8')
+        elif req_message_body['password'] == str(1234):
+            message_body = b''
+            conn_db = sqlite3.connect('contacts_db.sqlite')
+            c = conn_db.cursor()
+            for row in c.execute("SELECT * FROM contacts"):
+                message_body += bytes(str(row), encoding='utf-8') + b'\n'
+            c.close()
+        else:
+            message_body = bytes(create_html(msg='Sorry, you\'re wrong'), encoding='utf-8')
 
     if resource.find('.') == -1:
         resource += '.html'
 
-    if 'password' not in b:
-        try:
+    try:
+        if 'message_body' not in locals():
             with open('.' + resource, 'rb') as file:
                 message_body = file.read()
-        except FileNotFoundError:
-            return b'HTTP/1.1 404 Not Found\n\n\n<h1>file not found</h1>'
-    elif b['password'] == str(1234):
-        message_body = b''
-        conn_db = sqlite3.connect('contacts_db.sqlite')
-        c = conn_db.cursor()
-        for row in c.execute("SELECT * FROM contacts"):
-            message_body += bytes(str(row), encoding='utf-8') + b'\n'
-        c.close()
-    else:
-        message_body = b'<h1>Sorry, you\'re wrong</h1>'
+    except FileNotFoundError:
+        return b'HTTP/1.1 404 Not Found\n\n\n' + \
+                   bytes(create_html(msg='File not found'), encoding='utf-8')
 
     if resource.endswith('.css'):
         headers = 'Content-Type: text/css'
@@ -78,7 +82,7 @@ while True:
             conn, addr = sock.accept()
             conn.settimeout(1)
             l, h, b = readData(conn)
-            print(l)
+            print(l, b)
             if b:
                 b = processing_body_req(b)
             conn.sendall(response(l, h, b))

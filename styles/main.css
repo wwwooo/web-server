@@ -1,9 +1,18 @@
-form {
+main {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translateX(-50%) translatey(-50%);
-    padding: 50px;
+    font: 36px 'Amatic SC';
+}
+
+.header__link {
+    position: absolute;
+    top: 50px;
+    left: 50px;
+}
+
+form {
     font: 24px 'Amatic SC';
 }
 
@@ -12,7 +21,8 @@ h2 {
     text-align: center;
 }
 
-input {
+input,
+button {
     display: block;
     width: 300px;
     height: 50px;
@@ -24,12 +34,16 @@ input {
 }
 
 button {
-    display: block;
     width: 100px;
-    height: 50px;
     margin: 0 auto;
-    padding: 5px 10px;
     background: orange;
-    border: none;
-    font: inherit;
+}
+
+.password {
+    display: inline-block;
+    background: initial;
+}
+
+.password + button {
+    display: inline-block;
 }
