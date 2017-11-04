@@ -1,49 +1,6 @@
 import socket
 import sqlite3
-from creator import create_html
-
-
-def response(req_line, req_headers, req_message_body):
-    resource = req_line.split(' ')[1]
-    headers = ''
-
-    if resource == '/':
-        if 'Content-Length' not in req_headers:
-            message_body = bytes(create_html(template='index.html'), encoding='utf-8')
-        else:
-            message_body = bytes(create_html(), encoding='utf-8')
-    elif resource == '/admin.html':
-        if not len(req_message_body):
-            message_body = bytes(create_html(msg='Protected Information. Enter the password',
-                                         template='authorization.html'), encoding='utf-8')
-        elif req_message_body['password'] == str(1234):
-            message_body = b''
-            conn_db = sqlite3.connect('contacts_db.sqlite')
-            c = conn_db.cursor()
-            for row in c.execute("SELECT * FROM contacts"):
-                message_body += bytes(str(row), encoding='utf-8') + b'\n'
-            c.close()
-        else:
-            message_body = bytes(create_html(msg='Sorry, you\'re wrong'), encoding='utf-8')
-
-    if resource.find('.') == -1:
-        resource += '.html'
-
-    try:
-        if 'message_body' not in locals():
-            with open('.' + resource, 'rb') as file:
-                message_body = file.read()
-    except FileNotFoundError:
-        return b'HTTP/1.1 404 Not Found\n\n\n' + \
-                   bytes(create_html(msg='File not found'), encoding='utf-8')
-
-    if resource.endswith('.css'):
-        headers = 'Content-Type: text/css'
-    elif resource.endswith('.ico'):
-        headers = 'Content-Type: image/x-icon'
-
-    return bytes('HTTP/1.1 200 OK\n' + headers + '\n\n', encoding='utf-8') + message_body
-
+from response import Response
 
 def readData(sock):
     data = ''
@@ -85,7 +42,8 @@ while True:
             print(l, b)
             if b:
                 b = processing_body_req(b)
-            conn.sendall(response(l, h, b))
+            response = Response(l, h, b).get()
+            conn.sendall(response)
             conn.close()
         except socket.timeout:
             pass
